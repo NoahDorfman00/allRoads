@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AllRoads - Find the Perfect Meeting Place</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+</head>
+
+<body>
+    <div class="container">
+        <header class="site-header">
+            <h1>All Roads</h1>
+            <p class="slogan">Find the perfect meeting place.</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <div class="location-input">
+                    <input type="text" id="address-input" placeholder="Enter an address">
+                    <button onclick="addLocation()">Add</button>
+                </div>
+
+                <div class="venue-type">
+                    <label for="venue-select">Where would you like to meet?</label>
+                    <select id="venue-select">
+                        <option value="restaurant">Restaurant</option>
+                        <option value="bar">Bar</option>
+                        <option value="cafe">Cafe</option>
+                        <option value="park">Park</option>
+                    </select>
+                </div>
+
+                <button onclick="findOptimalVenue()" id="find-venue-btn" class="primary-button" disabled>
+                    Find Perfect Meeting Place
+                </button>
+            </div>
+
+            <div class="locations-list">
+                <h2>Starting Locations</h2>
+                <ul id="locations-list"></ul>
+            </div>
+
+            <div id="optimal-venue" class="hidden">
+                <h2>Perfect Meeting Place</h2>
+                <div id="venue-details"></div>
+
+                <div class="nearby-venues">
+                    <h3>Other Options Nearby</h3>
+                    <div class="venue-grid" id="nearby-venues-list"></div>
+                </div>
+            </div>
+
+            <div id="map"></div>
+        </main>
+
+        <footer>
+            <p>Made with ❤️ for bringing people together</p>
+        </footer>
+    </div>
+
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDcBuMJDJHr1VQ77vhW8aQ9z6fRIbtShX4&libraries=places"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
