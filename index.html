@@ -4,9 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AllRoads - Find the Perfect Meeting Place</title>
+    <title>All Roads - Find the Perfect Meeting Place</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>">
 </head>
 
 <body>
@@ -31,6 +33,7 @@
                         <option value="cafe">Cafe</option>
                         <option value="park">Park</option>
                     </select>
+                    <div id="subtype-container" class="hidden"></div>
                 </div>
 
                 <button onclick="findOptimalVenue()" id="find-venue-btn" class="primary-button" disabled>
@@ -43,6 +46,8 @@
                 <ul id="locations-list"></ul>
             </div>
 
+            <div id="map"></div>
+
             <div id="optimal-venue" class="hidden">
                 <h2>Perfect Meeting Place</h2>
                 <div id="venue-details"></div>
@@ -52,8 +57,6 @@
                     <div class="venue-grid" id="nearby-venues-list"></div>
                 </div>
             </div>
-
-            <div id="map"></div>
         </main>
 
         <footer>
