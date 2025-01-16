@@ -109,10 +109,38 @@ button:disabled {
 }
 
 .primary-button {
+    position: relative;
+    transition: all 0.3s ease;
     width: 100%;
     padding: 1rem;
     font-size: 1.125rem;
     margin-top: 1rem;
+}
+
+.primary-button.loading {
+    background-color: var(--primary-hover);
+    cursor: wait;
+    padding-left: 3rem;
+}
+
+.primary-button.loading::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
 }
 
 .venue-type {
@@ -368,53 +396,56 @@ footer {
 }
 
 .expand-btn {
-    width: 100%;
-    background: transparent;
-    border: 1px solid var(--border-color);
+    width: auto;
+    background: none !important;
+    border: none;
     color: var(--text-secondary);
-    padding: 0.5rem;
-    font-size: 0.875rem;
-    margin-top: 0.75rem;
+    padding: 0;
+    font-size: 1rem;
+    margin: 0.5rem 0;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.expand-btn:hover {
-    background: var(--background);
-    color: var(--text-primary);
+button.expand-btn:hover {
+    background: none !important;
+    opacity: 0.7;
 }
 
-.venue-details {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-color);
+.expand-btn:hover .expand-icon {
+    transform: translateY(2px);
 }
 
-.venue-details.hidden {
+.expand-icon {
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    display: inline-block;
+    color: var(--text-secondary);
+}
+
+.venue-hours {
+    margin: 0.5rem 0 1rem 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.venue-hours.hidden {
     display: none;
 }
 
-.hours-list {
-    margin-bottom: 1rem;
-}
-
-.hours-list h5 {
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.hours-list ul {
+.venue-hours ul {
     list-style: none;
     padding: 0;
     margin: 0;
+    padding-left: 1rem;
 }
 
-.hours-list li {
-    font-size: 0.875rem;
+.venue-hours li {
     color: var(--text-secondary);
     padding: 0.25rem 0;
+    font-size: 0.875rem;
 }
 
 .venue-links {
@@ -452,6 +483,14 @@ footer {
 
 .venue-header {
     margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.venue-header-content {
+    flex: 1;
 }
 
 .venue-header h3 {
@@ -459,6 +498,35 @@ footer {
     font-size: 1.5rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
+}
+
+.share-btn {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    min-width: 120px;
+    text-align: center;
+}
+
+.share-btn:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+    .venue-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .share-btn {
+        width: 100%;
+    }
 }
 
 #venue-details .venue-meta {
@@ -552,4 +620,21 @@ footer {
 #subtype-container select:focus {
     outline: none;
     border-color: var(--primary-color);
+}
+
+.venue-status {
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius);
+}
+
+.venue-status.open {
+    color: var(--success-color);
+    background-color: rgba(5, 150, 105, 0.1);
+}
+
+.venue-status.closed {
+    color: var(--danger-color);
+    background-color: rgba(220, 38, 38, 0.1);
 }

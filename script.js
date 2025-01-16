@@ -45,17 +45,86 @@ const venueSubtypes = {
     }
 };
 
-// Initialize the map
-function initMap() {
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
-        zoom: 12
-    });
+// State management functions
+function encodeState() {
+    const state = {
+        locations: locations,
+        selectedVenue: selectedVenue,
+        allVenues: allVenues,
+        venueType: document.getElementById('venue-select').value,
+        subtype: document.getElementById('subtype-select')?.value || ''
+    };
+    // Convert Unicode to URI-safe base64
+    const jsonString = JSON.stringify(state);
+    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
+    return encodeURIComponent(base64);
 }
 
-// Initialize when the page loads
-window.onload = function () {
-    initMap();
+function decodeState(encodedState) {
+    try {
+        // Convert URI-safe base64 back to Unicode
+        const jsonString = decodeURIComponent(escape(atob(decodeURIComponent(encodedState))));
+        const state = JSON.parse(jsonString);
+        return state;
+    } catch (error) {
+        console.error('Error decoding state:', error);
+        return null;
+    }
+}
+
+function updateURL() {
+    const stateParam = encodeState();
+    const newURL = `${window.location.pathname}#state=${stateParam}`;
+    window.history.pushState({ path: newURL }, '', newURL);
+}
+
+function loadStateFromURL() {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes('state=')) return false;
+
+    const encodedState = hash.split('state=')[1];
+    const state = decodeState(encodedState);
+    if (!state) return false;
+
+    // Restore state
+    locations = state.locations;
+    selectedVenue = state.selectedVenue;
+    allVenues = state.allVenues;
+
+    // Update UI
+    document.getElementById('venue-select').value = state.venueType;
+    updateSubtypeSelector();
+    if (state.subtype) {
+        const subtypeSelect = document.getElementById('subtype-select');
+        if (subtypeSelect) subtypeSelect.value = state.subtype;
+    }
+
+    // Update map and markers
+    locations.forEach(location => {
+        addMarkerToMap(location);
+        addLocationToList(location);
+    });
+    updateMapBounds();
+    updateFindButton();
+
+    // If there's a selected venue, display it
+    if (selectedVenue) {
+        displayOptimalVenue(selectedVenue);
+        displayNearbyVenues(allVenues, selectedVenue);
+        addOptimalVenueMarker(selectedVenue);
+    }
+
+    return true;
+}
+
+// Initialize map (called by Google Maps API when loaded)
+window.initMap = async function () {
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 39.9526, lng: -75.1652 }, // Default to Philadelphia
+        zoom: 12,
+        mapId: '619c1f9bd3f72bc7'
+    });
+
     // Initialize the autocomplete for the input field
     const input = document.getElementById('address-input');
     const autocomplete = new google.maps.places.Autocomplete(input);
@@ -65,7 +134,32 @@ window.onload = function () {
 
     // Initial call to set up subtype selector
     updateSubtypeSelector();
+
+    // Try to load state from URL
+    loadStateFromURL();
 };
+
+// Add function to show/hide subtype selector
+function updateSubtypeSelector() {
+    const venueType = document.getElementById('venue-select').value;
+    const subtypeContainer = document.getElementById('subtype-container');
+
+    if (venueSubtypes[venueType]) {
+        const { label, options } = venueSubtypes[venueType];
+        subtypeContainer.innerHTML = `
+            <label for="subtype-select">${label}</label>
+            <select id="subtype-select">
+                ${options.map(opt => `
+                    <option value="${opt.value}">${opt.label}</option>
+                `).join('')}
+            </select>
+        `;
+        subtypeContainer.classList.remove('hidden');
+    } else {
+        subtypeContainer.innerHTML = '';
+        subtypeContainer.classList.add('hidden');
+    }
+}
 
 // Add a new location
 async function addLocation() {
@@ -74,7 +168,6 @@ async function addLocation() {
 
     if (!address) return;
 
-    const geocoder = new google.maps.Geocoder();
     try {
         const result = await geocodeAddress(address);
         if (result) {
@@ -90,6 +183,7 @@ async function addLocation() {
             addMarkerToMap(location);
             updateMapBounds();
             updateFindButton();
+            updateURL(); // Update URL with new state
             input.value = '';
         }
     } catch (error) {
@@ -125,9 +219,9 @@ function addLocationToList(location) {
 
 // Add a marker to the map
 function addMarkerToMap(location) {
-    const marker = new google.maps.Marker({
-        position: { lat: location.lat, lng: location.lng },
-        map: map
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: { lat: location.lat, lng: location.lng }
     });
     markers.push(marker);
 }
@@ -137,11 +231,12 @@ function removeLocation(id) {
     const index = locations.findIndex(loc => loc.id === id);
     if (index !== -1) {
         locations.splice(index, 1);
-        markers[index].setMap(null);
+        markers[index].map = null;
         markers.splice(index, 1);
         updateLocationsList();
         updateMapBounds();
         updateFindButton();
+        updateURL(); // Update URL with new state
     }
 }
 
@@ -173,6 +268,10 @@ function updateFindButton() {
 async function findOptimalVenue() {
     if (locations.length < 2) return;
 
+    const button = document.getElementById('find-venue-btn');
+    button.classList.add('loading');
+    button.disabled = true;
+
     const venueType = document.getElementById('venue-select').value;
     const center = calculateCenter();
 
@@ -187,12 +286,28 @@ async function findOptimalVenue() {
             displayOptimalVenue(optimal);
             displayNearbyVenues(venuesWithTravelTimes, optimal);
             addOptimalVenueMarker(optimal);
+            updateURL(); // Update URL with new state
+
+            // Calculate optimal scroll position
+            const mapElement = document.getElementById('map');
+            const headerHeight = document.querySelector('.site-header').offsetHeight;
+            const inputSection = document.querySelector('.input-section').offsetHeight;
+            const mapTop = mapElement.getBoundingClientRect().top + window.pageYOffset;
+            const targetScroll = mapTop - 20; // 20px padding
+
+            window.scrollTo({
+                top: targetScroll,
+                behavior: 'smooth'
+            });
         } else {
             alert('No suitable venues found. Try increasing the search radius or changing the venue type.');
         }
     } catch (error) {
         console.error('Error finding optimal venue:', error);
         alert('An error occurred while finding the optimal venue. Please try again.');
+    } finally {
+        button.classList.remove('loading');
+        button.disabled = locations.length < 2;
     }
 }
 
@@ -216,17 +331,15 @@ function findNearbyVenues(center, type) {
             location: center,
             radius: searchRadius,
             type: type,
-            keyword: subtype // Add the subtype as a keyword to filter results
+            keyword: subtype
         };
 
         service.nearbySearch(request, async (results, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                // Filter out non-operational businesses
                 const operationalPlaces = results.filter(place =>
                     place.business_status === 'OPERATIONAL' || !place.business_status
                 );
 
-                // Get detailed information for each operational place
                 const detailedResults = await Promise.all(
                     operationalPlaces.slice(0, 20).map(async place => {
                         try {
@@ -255,7 +368,7 @@ function findNearbyVenues(center, type) {
     });
 }
 
-// Add function to get place details
+// Get place details
 function getPlaceDetails(placeId) {
     return new Promise((resolve, reject) => {
         const service = new google.maps.places.PlacesService(map);
@@ -266,7 +379,7 @@ function getPlaceDetails(placeId) {
                     'rating',
                     'user_ratings_total',
                     'price_level',
-                    'opening_hours',
+                    'current_opening_hours',
                     'website',
                     'url',
                     'business_status'
@@ -274,6 +387,18 @@ function getPlaceDetails(placeId) {
             },
             (result, status) => {
                 if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    console.log('Place details result:', result);  // Debug log
+
+                    // Convert current_opening_hours to the format we're using
+                    if (result.current_opening_hours) {
+                        const isOpenNow = result.current_opening_hours.open_now;
+                        console.log('Is open now:', isOpenNow);  // Debug log
+
+                        result.opening_hours = {
+                            weekday_text: result.current_opening_hours.weekday_text || [],
+                            isOpen: isOpenNow
+                        };
+                    }
                     resolve(result);
                 } else {
                     reject(status);
@@ -311,7 +436,7 @@ async function calculateTravelTimes(venues) {
             const totalTime = travelTimes.reduce((total, time) => total + time.duration, 0);
 
             venuesWithTimes.push({
-                ...venue, // Include all venue details
+                ...venue,
                 name: venue.name,
                 address: venue.vicinity,
                 lat: venue.geometry.location.lat(),
@@ -333,7 +458,7 @@ async function calculateTravelTimes(venues) {
     return venuesWithTimes;
 }
 
-// Find the venue with the lowest total travel time
+// Find the optimal location
 function findOptimalLocation(venues) {
     if (venues.length === 0) return null;
     return venues.reduce((prev, current) =>
@@ -346,24 +471,34 @@ function displayOptimalVenue(venue) {
     const venueElement = document.getElementById('optimal-venue');
     const detailsElement = document.getElementById('venue-details');
 
-    // Format price level and rating information
     const priceLevel = venue.price_level ? '$'.repeat(venue.price_level) : '';
     const rating = venue.rating ? `★ ${venue.rating.toFixed(1)}` : '';
     const ratingCount = venue.user_ratings_total ? `(${venue.user_ratings_total} reviews)` : '';
 
-    // Basic venue information
     let html = `
         <div class="venue-header">
-            <h3>${venue.name}</h3>
-            <div class="venue-meta">
-                ${priceLevel ? `<span class="venue-price">${priceLevel}</span>` : ''}
-                ${rating ? `<span class="venue-rating">${rating} ${ratingCount}</span>` : ''}
+            <div class="venue-header-content">
+                <h3>${venue.name}</h3>
+                <div class="venue-meta">
+                    ${priceLevel ? `<span class="venue-price">${priceLevel}</span>` : ''}
+                    ${rating ? `<span class="venue-rating">${rating} ${ratingCount}</span>` : ''}
+                    ${venue.opening_hours ? `
+                        <span class="venue-status ${venue.opening_hours.isOpen ? 'open' : 'closed'}">
+                            ${venue.opening_hours.isOpen ? 'Open Now' : 'Closed'}
+                        </span>
+                    ` : ''}
+                </div>
             </div>
+            <button onclick="shareResults()" class="share-btn">
+                Share Results
+            </button>
         </div>
         <p class="venue-address"><strong>Address:</strong> ${venue.address}</p>
         ${venue.opening_hours ? `
-            <div class="venue-hours">
-                <h4>Hours:</h4>
+            <button class="expand-btn" onclick="toggleHours(this)">
+                Hours <span class="expand-icon">▼</span>
+            </button>
+            <div class="venue-hours hidden">
                 <ul>
                     ${venue.opening_hours.weekday_text.map(day => `<li>${day}</li>`).join('')}
                 </ul>
@@ -379,7 +514,6 @@ function displayOptimalVenue(venue) {
         <ul class="directions-list">
     `;
 
-    // Add directions links and travel times for each starting location
     locations.forEach(location => {
         const travelTime = venue.travelTimes.find(t => t.locationId === location.id);
         const minutes = Math.round((travelTime?.duration || 0) / 60);
@@ -401,17 +535,31 @@ function displayOptimalVenue(venue) {
     venueElement.classList.remove('hidden');
 }
 
-// Add a marker for the optimal venue
+// Add function to toggle hours visibility
+function toggleHours(button) {
+    const hoursDiv = button.nextElementSibling;
+    const icon = button.querySelector('.expand-icon');
+    const isHidden = hoursDiv.classList.contains('hidden');
+
+    hoursDiv.classList.toggle('hidden');
+    icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+// Add optimal venue marker
 function addOptimalVenueMarker(venue) {
-    // Remove previous optimal venue marker if it exists
     if (optimalVenue) {
-        optimalVenue.setMap(null);
+        optimalVenue.map = null;
     }
 
-    optimalVenue = new google.maps.Marker({
+    const pin = new google.maps.marker.PinElement({
+        background: '#2563eb',
+        glyphColor: '#FFFFFF'
+    });
+
+    optimalVenue = new google.maps.marker.AdvancedMarkerElement({
+        map,
         position: { lat: venue.lat, lng: venue.lng },
-        map: map,
-        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        content: pin.element
     });
 
     map.setCenter({ lat: venue.lat, lng: venue.lng });
@@ -423,7 +571,6 @@ function displayNearbyVenues(venues, optimal) {
     const nearbyVenuesList = document.getElementById('nearby-venues-list');
     nearbyVenuesList.innerHTML = '';
 
-    // Sort venues by total travel time
     venues.sort((a, b) => a.totalTravelTime - b.totalTravelTime);
 
     venues.forEach(venue => {
@@ -434,7 +581,6 @@ function displayNearbyVenues(venues, optimal) {
         const venueCard = document.createElement('div');
         venueCard.className = `venue-card${isSelected ? ' selected' : ''}`;
 
-        // Format price level and rating information
         const priceLevel = venue.price_level ? '$'.repeat(venue.price_level) : '';
         const rating = venue.rating ? `★ ${venue.rating.toFixed(1)}` : '';
         const ratingCount = venue.user_ratings_total ? `(${venue.user_ratings_total} reviews)` : '';
@@ -454,11 +600,10 @@ function displayNearbyVenues(venues, optimal) {
     });
 }
 
-// Add function to handle venue selection
+// Handle venue selection
 function selectVenue(venue) {
     selectedVenue = venue;
 
-    // Update UI to show selected venue
     const venueCards = document.querySelectorAll('.venue-card');
     venueCards.forEach(card => {
         card.classList.remove('selected');
@@ -467,29 +612,45 @@ function selectVenue(venue) {
         }
     });
 
-    // Update the main venue display and map
     displayOptimalVenue(venue);
     addOptimalVenueMarker(venue);
+    updateURL(); // Update URL with new state
 }
 
-// Add function to show/hide subtype selector
-function updateSubtypeSelector() {
-    const venueType = document.getElementById('venue-select').value;
-    const subtypeContainer = document.getElementById('subtype-container');
+// Share results
+async function shareResults() {
+    try {
+        // Update URL first to ensure it's current
+        updateURL();
 
-    if (venueSubtypes[venueType]) {
-        const { label, options } = venueSubtypes[venueType];
-        subtypeContainer.innerHTML = `
-            <label for="subtype-select">${label}</label>
-            <select id="subtype-select">
-                ${options.map(opt => `
-                    <option value="${opt.value}">${opt.label}</option>
-                `).join('')}
-            </select>
-        `;
-        subtypeContainer.classList.remove('hidden');
-    } else {
-        subtypeContainer.innerHTML = '';
-        subtypeContainer.classList.add('hidden');
+        // Try to use the Share API if available and not on desktop browsers
+        if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            try {
+                await navigator.share({
+                    title: 'All Roads - Meeting Place',
+                    text: 'Check out this perfect meeting place I found!',
+                    url: window.location.href
+                });
+                return;
+            } catch (shareError) {
+                console.log('Share API error, falling back to clipboard:', shareError);
+                // Continue to clipboard fallback
+            }
+        }
+
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+
+        const shareBtn = document.querySelector('.share-btn');
+        const originalText = shareBtn.textContent;
+        shareBtn.textContent = 'Copied!';
+
+        // Reset button text after 2 seconds
+        setTimeout(() => {
+            shareBtn.textContent = originalText;
+        }, 2000);
+    } catch (error) {
+        console.error('Error sharing:', error);
+        alert('Could not share results. Please try copying the URL manually.');
     }
 } 

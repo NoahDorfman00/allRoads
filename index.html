@@ -36,7 +36,8 @@
                     <div id="subtype-container" class="hidden"></div>
                 </div>
 
-                <button onclick="findOptimalVenue()" id="find-venue-btn" class="primary-button" disabled>
+                <button onclick="findOptimalVenue().catch(error => console.error('Error:', error))" id="find-venue-btn"
+                    class="primary-button" disabled>
                     Find Perfect Meeting Place
                 </button>
             </div>
@@ -64,8 +65,29 @@
         </footer>
     </div>
 
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDcBuMJDJHr1VQ77vhW8aQ9z6fRIbtShX4&libraries=places"></script>
+    <script src="config.js"></script>
+    <script>
+        // Get API key from global variable
+        let GOOGLE_API_KEY = "";
+        if (typeof process !== 'undefined' && process.env && process.env.GOOGLE_API_KEY) {
+            GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+        } else if (window.GOOGLE_API_KEY) {
+            GOOGLE_API_KEY = window.GOOGLE_API_KEY;
+        } else {
+            console.error('Google Maps API key not found');
+        }
+
+        // Initialize and load Google Maps with async loading pattern
+        function initializeMap() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places,marker&callback=initMap&loading=async`;
+            script.async = true;
+            document.head.appendChild(script);
+        }
+
+        // Start loading the Maps JavaScript API
+        initializeMap();
+    </script>
     <script src="script.js"></script>
 </body>
 
