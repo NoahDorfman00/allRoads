@@ -153,7 +153,7 @@ function loadStateFromURL() {
 }
 
 // Initialize map
-window.initializeMap = async function () {
+window.initMap = async function () {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 39.9526, lng: -75.1652 }, // Default to Philadelphia
         zoom: 12,
