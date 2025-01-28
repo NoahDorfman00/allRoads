@@ -6,6 +6,16 @@ let optimalVenue = null;
 const searchRadius = 5000; // 5km default
 let allVenues = [];
 let selectedVenue = null;
+let displayedVenueCount = 5;
+
+// Firebase Functions base URLs
+const FIREBASE_FUNCTIONS = {
+    geocodeAddress: 'https://geocodeaddress-clevp6kv7a-uc.a.run.app',
+    findNearbyVenues: 'https://findnearbyvenues-clevp6kv7a-uc.a.run.app',
+    getPlaceDetails: 'https://getplacedetails-clevp6kv7a-uc.a.run.app',
+    calculateTravelTimes: 'https://calculatetraveltimes-clevp6kv7a-uc.a.run.app',
+    findOptimalVenue: 'https://findoptimalvenue-clevp6kv7a-uc.a.run.app'
+};
 
 // Add venue subtype configurations
 const venueSubtypes = {
@@ -45,6 +55,33 @@ const venueSubtypes = {
     }
 };
 
+// Helper function for API calls
+async function callFirebaseFunction(endpoint, data) {
+    try {
+        console.log(`Calling ${endpoint} with data:`, data);
+        const response = await fetch(FIREBASE_FUNCTIONS[endpoint], {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        console.log(`Response status:`, response.status);
+        const result = await response.json();
+        console.log(`Response data:`, result);
+
+        if (result.status === 'success') {
+            return result.data;
+        }
+        throw new Error(result.message || 'API call failed');
+    } catch (error) {
+        console.error(`Error calling ${endpoint}:`, error);
+        console.error('Full error object:', JSON.stringify(error, null, 2));
+        throw error;
+    }
+}
+
 // State management functions
 function encodeState() {
     const state = {
@@ -54,7 +91,6 @@ function encodeState() {
         venueType: document.getElementById('venue-select').value,
         subtype: document.getElementById('subtype-select')?.value || ''
     };
-    // Convert Unicode to URI-safe base64
     const jsonString = JSON.stringify(state);
     const base64 = btoa(unescape(encodeURIComponent(jsonString)));
     return encodeURIComponent(base64);
@@ -62,7 +98,6 @@ function encodeState() {
 
 function decodeState(encodedState) {
     try {
-        // Convert URI-safe base64 back to Unicode
         const jsonString = decodeURIComponent(escape(atob(decodeURIComponent(encodedState))));
         const state = JSON.parse(jsonString);
         return state;
@@ -117,8 +152,8 @@ function loadStateFromURL() {
     return true;
 }
 
-// Initialize map (called by Google Maps API when loaded)
-window.initMap = async function () {
+// Initialize map
+window.initializeMap = async function () {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 39.9526, lng: -75.1652 }, // Default to Philadelphia
         zoom: 12,
@@ -169,41 +204,26 @@ async function addLocation() {
     if (!address) return;
 
     try {
-        const result = await geocodeAddress(address);
-        if (result) {
-            const location = {
-                id: Date.now().toString(),
-                address: result.formatted_address,
-                lat: result.geometry.location.lat(),
-                lng: result.geometry.location.lng()
-            };
+        const result = await callFirebaseFunction('geocodeAddress', { address });
 
-            locations.push(location);
-            addLocationToList(location);
-            addMarkerToMap(location);
-            updateMapBounds();
-            updateFindButton();
-            updateURL(); // Update URL with new state
-            input.value = '';
-        }
+        const location = {
+            id: Date.now().toString(),
+            address: result.formatted_address,
+            lat: result.geometry.location.lat,
+            lng: result.geometry.location.lng
+        };
+
+        locations.push(location);
+        addLocationToList(location);
+        addMarkerToMap(location);
+        updateMapBounds();
+        updateFindButton();
+        updateURL();
+        input.value = '';
     } catch (error) {
         console.error('Geocoding error:', error);
         alert('Could not find this address. Please try again.');
     }
-}
-
-// Geocode an address
-function geocodeAddress(address) {
-    return new Promise((resolve, reject) => {
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address }, (results, status) => {
-            if (status === 'OK' && results[0]) {
-                resolve(results[0]);
-            } else {
-                reject(status);
-            }
-        });
-    });
 }
 
 // Add a location to the list in the UI
@@ -236,7 +256,7 @@ function removeLocation(id) {
         updateLocationsList();
         updateMapBounds();
         updateFindButton();
-        updateURL(); // Update URL with new state
+        updateURL();
     }
 }
 
@@ -258,7 +278,25 @@ function updateMapBounds() {
     map.fitBounds(bounds);
 }
 
-// Enable/disable the find venue button based on number of locations
+// Calculate the center point of all locations
+function calculateCenter() {
+    if (locations.length === 0) return null;
+
+    const total = locations.reduce(
+        (acc, loc) => ({
+            lat: acc.lat + loc.lat,
+            lng: acc.lng + loc.lng
+        }),
+        { lat: 0, lng: 0 }
+    );
+
+    return {
+        lat: total.lat / locations.length,
+        lng: total.lng / locations.length
+    };
+}
+
+// Update the find venue button state
 function updateFindButton() {
     const button = document.getElementById('find-venue-btn');
     button.disabled = locations.length < 2;
@@ -266,304 +304,133 @@ function updateFindButton() {
 
 // Find the optimal venue
 async function findOptimalVenue() {
-    if (locations.length < 2) return;
-
+    displayedVenueCount = 5; // Reset the count
     const button = document.getElementById('find-venue-btn');
     button.classList.add('loading');
     button.disabled = true;
 
-    const venueType = document.getElementById('venue-select').value;
-    const center = calculateCenter();
-
     try {
-        const venues = await findNearbyVenues(center, venueType);
-        const venuesWithTravelTimes = await calculateTravelTimes(venues);
-        allVenues = venuesWithTravelTimes;
-        const optimal = findOptimalLocation(venuesWithTravelTimes);
+        const center = calculateCenter();
+        if (!center) return;
 
-        if (optimal) {
-            selectedVenue = optimal;
-            displayOptimalVenue(optimal);
-            displayNearbyVenues(venuesWithTravelTimes, optimal);
-            addOptimalVenueMarker(optimal);
-            updateURL(); // Update URL with new state
+        const type = document.getElementById('venue-select').value;
+        const subtypeSelect = document.getElementById('subtype-select');
+        const subtype = subtypeSelect ? subtypeSelect.value : '';
 
-            // Calculate optimal scroll position
-            const mapElement = document.getElementById('map');
-            const headerHeight = document.querySelector('.site-header').offsetHeight;
-            const inputSection = document.querySelector('.input-section').offsetHeight;
-            const mapTop = mapElement.getBoundingClientRect().top + window.pageYOffset;
-            const targetScroll = mapTop - 20; // 20px padding
+        // First get nearby venues
+        const venues = await callFirebaseFunction('findNearbyVenues', {
+            center,
+            type,
+            subtype,
+            radius: searchRadius
+        });
 
-            window.scrollTo({
-                top: targetScroll,
-                behavior: 'smooth'
-            });
-        } else {
-            alert('No suitable venues found. Try increasing the search radius or changing the venue type.');
-        }
+        console.log('Nearby venues found:', venues);
+
+        // Then find the optimal venue
+        const result = await callFirebaseFunction('findOptimalVenue', {
+            locations,
+            venues
+        });
+
+        console.log('Optimal venue result:', result);
+        console.log('Travel times for optimal venue:', result.optimal.travelTimes);
+
+        const { optimal, allVenues: venuesWithTimes } = result;
+        selectedVenue = optimal;
+        allVenues = venuesWithTimes;
+
+        // Log the selected venue's travel times
+        console.log('Selected venue travel times:', selectedVenue.travelTimes);
+        console.log('Location IDs:', locations.map(loc => loc.id));
+
+        displayOptimalVenue(optimal);
+        displayNearbyVenues(venuesWithTimes, optimal);
+        addOptimalVenueMarker(optimal);
+        updateURL();
     } catch (error) {
         console.error('Error finding optimal venue:', error);
-        alert('An error occurred while finding the optimal venue. Please try again.');
+        alert('An error occurred while finding venues. Please try again.');
     } finally {
         button.classList.remove('loading');
         button.disabled = locations.length < 2;
     }
 }
 
-// Calculate the center point of all locations
-function calculateCenter() {
-    const bounds = new google.maps.LatLngBounds();
-    locations.forEach(location => {
-        bounds.extend({ lat: location.lat, lng: location.lng });
-    });
-    return bounds.getCenter();
-}
-
-// Find nearby venues using Places API
-function findNearbyVenues(center, type) {
-    return new Promise((resolve, reject) => {
-        const service = new google.maps.places.PlacesService(map);
-        const subtypeSelect = document.getElementById('subtype-select');
-        const subtype = subtypeSelect ? subtypeSelect.value : '';
-
-        const request = {
-            location: center,
-            radius: searchRadius,
-            type: type,
-            keyword: subtype
-        };
-
-        service.nearbySearch(request, async (results, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                const operationalPlaces = results.filter(place =>
-                    place.business_status === 'OPERATIONAL' || !place.business_status
-                );
-
-                const detailedResults = await Promise.all(
-                    operationalPlaces.slice(0, 20).map(async place => {
-                        try {
-                            const details = await getPlaceDetails(place.place_id);
-                            return {
-                                ...place,
-                                rating: details.rating,
-                                user_ratings_total: details.user_ratings_total,
-                                price_level: details.price_level,
-                                opening_hours: details.opening_hours,
-                                website: details.website,
-                                url: details.url,
-                                business_status: details.business_status
-                            };
-                        } catch (error) {
-                            console.error('Error fetching place details:', error);
-                            return place;
-                        }
-                    })
-                );
-                resolve(detailedResults);
-            } else {
-                reject(status);
-            }
+// Display the optimal venue
+async function displayOptimalVenue(venue) {
+    try {
+        const details = await callFirebaseFunction('getPlaceDetails', {
+            placeId: venue.place_id
         });
-    });
-}
 
-// Get place details
-function getPlaceDetails(placeId) {
-    return new Promise((resolve, reject) => {
-        const service = new google.maps.places.PlacesService(map);
-        service.getDetails(
-            {
-                placeId: placeId,
-                fields: [
-                    'rating',
-                    'user_ratings_total',
-                    'price_level',
-                    'current_opening_hours',
-                    'website',
-                    'url',
-                    'business_status'
-                ]
-            },
-            (result, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    console.log('Place details result:', result);  // Debug log
+        console.log('Venue details:', details);
+        console.log('Venue travel times before display:', venue.travelTimes);
+        console.log('Locations with IDs:', locations);
 
-                    // Convert current_opening_hours to the format we're using
-                    if (result.current_opening_hours) {
-                        const isOpenNow = result.current_opening_hours.open_now;
-                        console.log('Is open now:', isOpenNow);  // Debug log
-
-                        result.opening_hours = {
-                            weekday_text: result.current_opening_hours.weekday_text || [],
-                            isOpen: isOpenNow
-                        };
-                    }
-                    resolve(result);
-                } else {
-                    reject(status);
-                }
-            }
-        );
-    });
-}
-
-// Calculate travel times for all venues
-async function calculateTravelTimes(venues) {
-    const service = new google.maps.DistanceMatrixService();
-    const venuesWithTimes = [];
-
-    for (const venue of venues) {
-        if (!venue.geometry?.location) continue;
-
-        try {
-            const response = await new Promise((resolve, reject) => {
-                service.getDistanceMatrix({
-                    origins: locations.map(loc => ({ lat: loc.lat, lng: loc.lng })),
-                    destinations: [venue.geometry.location],
-                    travelMode: google.maps.TravelMode.DRIVING
-                }, (response, status) => {
-                    if (status === 'OK') resolve(response);
-                    else reject(status);
-                });
-            });
-
-            const travelTimes = response.rows.map((row, index) => ({
-                locationId: locations[index].id,
-                duration: row.elements[0].duration?.value || 0
-            }));
-
-            const totalTime = travelTimes.reduce((total, time) => total + time.duration, 0);
-
-            venuesWithTimes.push({
-                ...venue,
-                name: venue.name,
-                address: venue.vicinity,
-                lat: venue.geometry.location.lat(),
-                lng: venue.geometry.location.lng(),
-                rating: venue.rating,
-                user_ratings_total: venue.user_ratings_total,
-                price_level: venue.price_level,
-                opening_hours: venue.opening_hours,
-                website: venue.website,
-                url: venue.url,
-                travelTimes: travelTimes,
-                totalTravelTime: totalTime
-            });
-        } catch (error) {
-            console.error('Error calculating travel time:', error);
-        }
-    }
-
-    return venuesWithTimes;
-}
-
-// Find the optimal location
-function findOptimalLocation(venues) {
-    if (venues.length === 0) return null;
-    return venues.reduce((prev, current) =>
-        prev.totalTravelTime < current.totalTravelTime ? prev : current
-    );
-}
-
-// Display the optimal venue in the UI
-function displayOptimalVenue(venue) {
-    const venueElement = document.getElementById('optimal-venue');
-    const detailsElement = document.getElementById('venue-details');
-
-    const priceLevel = venue.price_level ? '$'.repeat(venue.price_level) : '';
-    const rating = venue.rating ? `★ ${venue.rating.toFixed(1)}` : '';
-    const ratingCount = venue.user_ratings_total ? `(${venue.user_ratings_total} reviews)` : '';
-
-    let html = `
-        <div class="venue-header">
-            <div class="venue-header-content">
-                <h3>${venue.name}</h3>
-                <div class="venue-meta">
-                    ${priceLevel ? `<span class="venue-price">${priceLevel}</span>` : ''}
-                    ${rating ? `<span class="venue-rating">${rating} ${ratingCount}</span>` : ''}
-                    ${venue.opening_hours ? `
-                        <span class="venue-status ${venue.opening_hours.isOpen ? 'open' : 'closed'}">
-                            ${venue.opening_hours.isOpen ? 'Open Now' : 'Closed'}
-                        </span>
-                    ` : ''}
+        const venueDetails = document.getElementById('venue-details');
+        venueDetails.innerHTML = `
+            <div class="venue-header">
+                <div class="venue-header-content">
+                    <h3>${details.name}</h3>
+                    <p class="venue-address">${details.formatted_address}</p>
+                    <div class="venue-meta">
+                        ${details.rating ? `<span class="venue-rating">${details.rating} ⭐️</span>` : ''}
+                        ${details.price_level ? `<span class="venue-price">${'$'.repeat(details.price_level)}</span>` : ''}
+                        ${details.opening_hours ? `
+                            <span class="venue-status ${details.opening_hours.open_now ? 'open' : 'closed'}">
+                                ${details.opening_hours.open_now ? 'Open Now' : 'Closed'}
+                            </span>
+                        ` : ''}
+                    </div>
                 </div>
+                <button class="share-btn" onclick="shareVenue()">Share</button>
             </div>
-            <button onclick="shareResults()" class="share-btn">
-                Share Results
-            </button>
-        </div>
-        <p class="venue-address"><strong>Address:</strong> ${venue.address}</p>
-        ${venue.opening_hours ? `
-            <button class="expand-btn" onclick="toggleHours(this)">
-                Hours <span class="expand-icon">▼</span>
-            </button>
-            <div class="venue-hours hidden">
-                <ul>
-                    ${venue.opening_hours.weekday_text.map(day => `<li>${day}</li>`).join('')}
-                </ul>
-            </div>
-        ` : ''}
-        ${venue.website ? `
+            
+            ${details.opening_hours ? `
+                <button class="expand-btn" onclick="toggleHours(this)">
+                    Operating Hours <span class="expand-icon">▼</span>
+                </button>
+                <div class="venue-hours hidden">
+                    <ul>
+                        ${details.opening_hours.weekday_text.map(day => `<li>${day}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+            
             <div class="venue-links">
-                <a href="${venue.website}" target="_blank" class="website-link">Visit Website</a>
-                <a href="${venue.url}" target="_blank" class="maps-link">View on Google Maps</a>
+                ${details.website ? `
+                    <a href="${details.website}" target="_blank" class="website-link">Visit Website</a>
+                ` : ''}
+                <a href="https://www.google.com/maps/place/?q=place_id:${venue.place_id}" target="_blank" class="maps-link">View on Maps</a>
             </div>
-        ` : ''}
-        <h4 class="directions-header">Travel times and directions:</h4>
-        <ul class="directions-list">
-    `;
 
-    locations.forEach(location => {
-        const travelTime = venue.travelTimes.find(t => t.locationId === location.id);
-        const minutes = Math.round((travelTime?.duration || 0) / 60);
-        const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(location.address)}&destination=${encodeURIComponent(venue.address)}`;
-
-        html += `
-            <li>
-                <div class="location-info">
-                    <span class="location-address">${location.address}</span>
-                    <span class="travel-time">${minutes} minutes</span>
-                </div>
-                <a href="${directionsUrl}" target="_blank" class="directions-link">Get Directions</a>
-            </li>
+            <div class="directions-header">Travel Times</div>
+            <ul class="directions-list">
+                ${locations.map((loc, index) => {
+            const travelTime = Array.isArray(venue.travelTimes) ? venue.travelTimes[index] : null;
+            return `
+                    <li>
+                        <div class="location-info">
+                            <div class="location-address">${loc.address}</div>
+                            <div class="travel-time">${travelTime ? Math.round(travelTime / 60) : 'Calculating...'} minutes</div>
+                        </div>
+                        <a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(loc.address)}&destination=place_id:${venue.place_id}&travelmode=driving" 
+                           target="_blank" 
+                           class="directions-link">
+                            Get Directions
+                        </a>
+                    </li>
+                `}).join('')}
+            </ul>
         `;
-    });
 
-    html += '</ul>';
-    detailsElement.innerHTML = html;
-    venueElement.classList.remove('hidden');
-}
-
-// Add function to toggle hours visibility
-function toggleHours(button) {
-    const hoursDiv = button.nextElementSibling;
-    const icon = button.querySelector('.expand-icon');
-    const isHidden = hoursDiv.classList.contains('hidden');
-
-    hoursDiv.classList.toggle('hidden');
-    icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-}
-
-// Add optimal venue marker
-function addOptimalVenueMarker(venue) {
-    if (optimalVenue) {
-        optimalVenue.map = null;
+        document.getElementById('optimal-venue').classList.remove('hidden');
+        const map = document.getElementById('map');
+        map.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+        console.error('Error displaying venue details:', error);
     }
-
-    const pin = new google.maps.marker.PinElement({
-        background: '#2563eb',
-        glyphColor: '#FFFFFF'
-    });
-
-    optimalVenue = new google.maps.marker.AdvancedMarkerElement({
-        map,
-        position: { lat: venue.lat, lng: venue.lng },
-        content: pin.element
-    });
-
-    map.setCenter({ lat: venue.lat, lng: venue.lng });
-    map.setZoom(14);
 }
 
 // Display nearby venues
@@ -571,86 +438,144 @@ function displayNearbyVenues(venues, optimal) {
     const nearbyVenuesList = document.getElementById('nearby-venues-list');
     nearbyVenuesList.innerHTML = '';
 
-    venues.sort((a, b) => a.totalTravelTime - b.totalTravelTime);
-
-    venues.forEach(venue => {
-        const isSelected = venue === optimal;
-        const totalMinutes = Math.round(venue.totalTravelTime / 60);
-        const avgMinutes = Math.round(totalMinutes / locations.length);
-
-        const venueCard = document.createElement('div');
-        venueCard.className = `venue-card${isSelected ? ' selected' : ''}`;
-
-        const priceLevel = venue.price_level ? '$'.repeat(venue.price_level) : '';
-        const rating = venue.rating ? `★ ${venue.rating.toFixed(1)}` : '';
-        const ratingCount = venue.user_ratings_total ? `(${venue.user_ratings_total} reviews)` : '';
-
-        venueCard.innerHTML = `
-            <h4>${venue.name}</h4>
-            <div class="venue-meta">
-                ${priceLevel ? `<span class="venue-price">${priceLevel}</span>` : ''}
-                ${rating ? `<span class="venue-rating">${rating} ${ratingCount}</span>` : ''}
-            </div>
-            <div class="venue-address">${venue.address}</div>
-            <div class="venue-travel-time">Average travel time: ${avgMinutes} minutes</div>
-        `;
-
-        venueCard.addEventListener('click', () => selectVenue(venue));
-        nearbyVenuesList.appendChild(venueCard);
-    });
-}
-
-// Handle venue selection
-function selectVenue(venue) {
-    selectedVenue = venue;
-
-    const venueCards = document.querySelectorAll('.venue-card');
-    venueCards.forEach(card => {
-        card.classList.remove('selected');
-        if (card.querySelector('h4').textContent === venue.name) {
-            card.classList.add('selected');
+    // If we have a previously selected venue different from optimal, swap them in the venues list
+    if (selectedVenue && selectedVenue.place_id !== optimal.place_id) {
+        const selectedIndex = venues.findIndex(v => v.place_id === selectedVenue.place_id);
+        const optimalIndex = venues.findIndex(v => v.place_id === optimal.place_id);
+        if (selectedIndex !== -1 && optimalIndex !== -1) {
+            [venues[selectedIndex], venues[optimalIndex]] = [venues[optimalIndex], venues[selectedIndex]];
         }
-    });
+    }
 
-    displayOptimalVenue(venue);
-    addOptimalVenueMarker(venue);
-    updateURL(); // Update URL with new state
+    const filteredVenues = venues
+        .filter(venue => venue.place_id !== selectedVenue?.place_id)
+        .sort((a, b) => a.maxTravelTime - b.maxTravelTime);
+
+    // Display the current batch of venues
+    filteredVenues
+        .slice(0, displayedVenueCount)
+        .forEach(venue => {
+            const venueElement = document.createElement('div');
+            venueElement.className = 'venue-card';
+            venueElement.onclick = () => selectVenue(venue);
+            venueElement.innerHTML = `
+                <h4>${venue.name}</h4>
+                <div class="venue-meta">
+                    ${venue.rating ? `<span class="venue-rating">${venue.rating} ⭐️</span>` : ''}
+                    ${venue.price_level ? `<span class="venue-price">${'$'.repeat(venue.price_level)}</span>` : ''}
+                </div>
+                <p class="venue-address">${venue.vicinity}</p>
+                <div class="venue-travel-time">
+                    <div>Max travel: ${venue.maxTravelTime ? Math.round(venue.maxTravelTime / 60) : 'Calculating...'} min</div>
+                    <div>Avg travel: ${venue.avgTravelTime ? Math.round(venue.avgTravelTime / 60) : 'Calculating...'} min</div>
+                </div>
+            `;
+            nearbyVenuesList.appendChild(venueElement);
+        });
+
+    // Add "Load More" button if there are more venues to show
+    if (filteredVenues.length > displayedVenueCount) {
+        const loadMoreButton = document.createElement('button');
+        loadMoreButton.className = 'load-more-btn';
+        loadMoreButton.onclick = () => {
+            displayedVenueCount += 5;
+            displayNearbyVenues(venues, optimal);
+        };
+        loadMoreButton.innerHTML = 'Load More Options';
+        nearbyVenuesList.appendChild(loadMoreButton);
+    }
 }
 
-// Share results
-async function shareResults() {
+// Add a marker for the optimal venue
+function addOptimalVenueMarker(venue) {
+    // Remove any existing optimal venue marker
+    if (optimalVenue) {
+        optimalVenue.map = null;
+    }
+
+    // Create a new marker
+    optimalVenue = new google.maps.marker.AdvancedMarkerElement({
+        map,
+        position: {
+            lat: venue.geometry.location.lat,
+            lng: venue.geometry.location.lng
+        },
+        title: venue.name
+    });
+
+    // Update map bounds to include the new marker
+    const bounds = new google.maps.LatLngBounds();
+    locations.forEach(location => {
+        bounds.extend({ lat: location.lat, lng: location.lng });
+    });
+    bounds.extend({
+        lat: venue.geometry.location.lat,
+        lng: venue.geometry.location.lng
+    });
+    map.fitBounds(bounds);
+}
+
+// Add share functionality
+async function shareVenue() {
+    if (!selectedVenue) return;
+
+    const url = window.location.href;
+    const shareBtn = document.querySelector('.share-btn');
+    const originalText = shareBtn.textContent;
+
     try {
-        // Update URL first to ensure it's current
-        updateURL();
-
-        // Try to use the Share API if available and not on desktop browsers
-        if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            try {
-                await navigator.share({
-                    title: 'All Roads - Meeting Place',
-                    text: 'Check out this perfect meeting place I found!',
-                    url: window.location.href
-                });
-                return;
-            } catch (shareError) {
-                console.log('Share API error, falling back to clipboard:', shareError);
-                // Continue to clipboard fallback
-            }
+        if (navigator.share && navigator.canShare?.({ url })) {
+            await navigator.share({
+                title: 'Perfect Meeting Place',
+                text: `Check out this perfect meeting place: ${selectedVenue.name}`,
+                url: url
+            });
+        } else {
+            await navigator.clipboard.writeText(url);
+            shareBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                shareBtn.textContent = originalText;
+            }, 2000);
         }
-
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(window.location.href);
-
-        const shareBtn = document.querySelector('.share-btn');
-        const originalText = shareBtn.textContent;
-        shareBtn.textContent = 'Copied!';
-
-        // Reset button text after 2 seconds
-        setTimeout(() => {
-            shareBtn.textContent = originalText;
-        }, 2000);
     } catch (error) {
         console.error('Error sharing:', error);
-        alert('Could not share results. Please try copying the URL manually.');
+        // Fallback to clipboard copy if sharing fails
+        try {
+            await navigator.clipboard.writeText(url);
+            shareBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                shareBtn.textContent = originalText;
+            }, 2000);
+        } catch (clipboardError) {
+            console.error('Error copying to clipboard:', clipboardError);
+            shareBtn.textContent = 'Share failed';
+            setTimeout(() => {
+                shareBtn.textContent = originalText;
+            }, 2000);
+        }
     }
+}
+
+// Add function to toggle hours visibility
+function toggleHours(button) {
+    const hoursDiv = button.nextElementSibling;
+    const icon = button.querySelector('.expand-icon');
+    if (hoursDiv.classList.contains('hidden')) {
+        hoursDiv.classList.remove('hidden');
+        icon.textContent = '▲';
+    } else {
+        hoursDiv.classList.add('hidden');
+        icon.textContent = '▼';
+    }
+}
+
+// Add function to select a different venue
+async function selectVenue(venue) {
+    displayedVenueCount = 5; // Reset the count
+    const previousVenue = selectedVenue;
+    selectedVenue = venue;
+    await displayOptimalVenue(venue);
+    addOptimalVenueMarker(venue);
+    displayNearbyVenues(allVenues, venue);
+    updateURL();
 } 

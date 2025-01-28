@@ -638,3 +638,22 @@ button.expand-btn:hover {
     color: var(--danger-color);
     background-color: rgba(220, 38, 38, 0.1);
 }
+
+.load-more-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: var(--background);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.load-more-btn:hover {
+    background-color: var(--border-color);
+    transform: translateY(-1px);
+}

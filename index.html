@@ -9,6 +9,28 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>">
+    <script>
+        // Initialize the Maps JavaScript API
+        (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })
+            ({ key: "AIzaSyDmSZmqad5vg0w3rltsNvCeqBbIqhy-wTY", v: "weekly" });
+    </script>
+    <script src="script.js"></script>
+    <script>
+        // Initialize the map when the page loads
+        async function initMap() {
+            const { Map } = await google.maps.importLibrary("maps");
+            const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+            const { Autocomplete } = await google.maps.importLibrary("places");
+
+            // Make AdvancedMarkerElement available globally
+            window.google.maps.marker = { AdvancedMarkerElement };
+
+            // Initialize the map
+            window.initializeMap();
+        }
+
+        window.onload = initMap;
+    </script>
 </head>
 
 <body>
@@ -64,42 +86,6 @@
             <p>Made with ❤️ for bringing people together</p>
         </footer>
     </div>
-
-    <script>
-        // Try to initialize map with primary and fallback API keys
-        const TEST_API_KEY = "AIzaSyCsQbnFwfszJTGoNr66hV6sw42rXMsi0kU";
-        const PROD_API_KEY = "AIzaSyDcBuMJDJHr1VQ77vhW8aQ9z6fRIbtShX4";
-
-        // Initialize and load Google Maps with async loading pattern
-        function initializeMap(apiKey) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&callback=initMap&loading=async`;
-                script.async = true;
-                script.onerror = () => reject(new Error('Failed to load Maps API'));
-                script.onload = () => resolve();
-                document.head.appendChild(script);
-            });
-        }
-
-        // Try primary API key first, fall back to secondary
-        async function loadMapsAPI() {
-            try {
-                await initializeMap(TEST_API_KEY);
-            } catch (error) {
-                console.log('Primary API key failed, trying secondary key...');
-                try {
-                    await initializeMap(PROD_API_KEY);
-                } catch (secondError) {
-                    console.error('Both API keys failed to load Maps API');
-                }
-            }
-        }
-
-        // Start loading the Maps JavaScript API
-        loadMapsAPI();
-    </script>
-    <script src="script.js"></script>
 </body>
 
 </html>
