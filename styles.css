@@ -1,17 +1,22 @@
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --success-color: #059669;
-    --success-hover: #047857;
-    --danger-color: #dc2626;
+    --primary-color: #43286a;
+    --primary-hover: #2d224c;
+    --subtitle-color: #21787a;
+    --accent-yellow: #fbbf24;
+    --accent-orange: #f87171;
+    --accent-teal: #38bdf8;
+    --accent-green: #34d399;
+    --success-color: #34d399;
+    --success-hover: #059669;
+    --danger-color: #f87171;
     --danger-hover: #b91c1c;
-    --text-primary: #1f2937;
-    --text-secondary: #4b5563;
-    --background: #f3f4f6;
+    --text-primary: #43286a;
+    --text-secondary: #21787a;
+    --background: #c6e6ee;
     --card-background: #ffffff;
     --border-color: #e5e7eb;
-    --radius: 0.75rem;
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --radius: 1.25rem;
+    --shadow: 0 2px 8px 0 rgb(44 44 44 / 0.08), 0 1.5px 4px -1px rgb(44 44 44 / 0.06);
 }
 
 * {
@@ -21,7 +26,7 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Inter', 'Nunito', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.6;
     color: var(--text-primary);
     background-color: var(--background);
@@ -39,17 +44,23 @@ body {
 }
 
 h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-size: 3rem;
+    font-weight: 800;
     color: var(--primary-color);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+    text-transform: lowercase;
+    letter-spacing: -0.03em;
+    font-family: 'Inter', 'Nunito', 'Quicksand', sans-serif;
 }
 
 .slogan {
-    font-size: 1.125rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-style: italic;
+    font-size: 1.1rem;
+    color: var(--subtitle-color);
+    font-weight: 700;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.5rem;
 }
 
 main {
@@ -75,32 +86,36 @@ main {
 
 input[type="text"] {
     flex: 1;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-color);
+    padding: 0.85rem 1.1rem;
+    border: 2px solid var(--border-color);
     border-radius: var(--radius);
-    font-size: 1rem;
+    font-size: 1.05rem;
     transition: border-color 0.2s;
+    background: #fafdff;
 }
 
 input[type="text"]:focus {
     outline: none;
-    border-color: var(--primary-color);
+    border-color: var(--accent-teal);
+    background: #e0f7fa;
 }
 
 button {
-    background-color: var(--primary-color);
-    color: white;
+    background-color: var(--accent-yellow);
+    color: var(--primary-color);
     border: none;
-    padding: 0.75rem 1.5rem;
+    padding: 0.85rem 1.5rem;
     border-radius: var(--radius);
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: background-color 0.2s;
+    font-size: 1.05rem;
+    font-weight: 700;
+    transition: background-color 0.2s, color 0.2s;
+    box-shadow: 0 1px 3px 0 rgb(44 44 44 / 0.08);
 }
 
 button:hover:not(:disabled) {
-    background-color: var(--primary-hover);
+    background-color: var(--accent-orange);
+    color: #fff;
 }
 
 button:disabled {
@@ -112,15 +127,20 @@ button:disabled {
     position: relative;
     transition: all 0.3s ease;
     width: 100%;
-    padding: 1rem;
-    font-size: 1.125rem;
+    padding: 1.1rem;
+    font-size: 1.15rem;
     margin-top: 1rem;
+    background: var(--accent-teal);
+    color: var(--primary-color);
+    font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 .primary-button.loading {
     background-color: var(--primary-hover);
     cursor: wait;
     padding-left: 3rem;
+    color: #fff;
 }
 
 .primary-button.loading::before {
@@ -132,7 +152,7 @@ button:disabled {
     width: 1.25rem;
     height: 1.25rem;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
+    border-top-color: var(--accent-yellow);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -147,33 +167,36 @@ button:disabled {
     margin-bottom: 1rem;
 }
 
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-secondary);
-    font-weight: 500;
+.venue-type label {
+    color: var(--primary-color);
+    font-weight: 700;
+    letter-spacing: 0.04em;
 }
 
 select {
     width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-color);
+    padding: 0.85rem 1.1rem;
+    border: 2px solid var(--border-color);
     border-radius: var(--radius);
-    font-size: 1rem;
-    background-color: var(--card-background);
+    font-size: 1.05rem;
+    background-color: #fafdff;
     cursor: pointer;
+    font-weight: 600;
+    color: var(--primary-color);
 }
 
 select:focus {
     outline: none;
-    border-color: var(--primary-color);
+    border-color: var(--accent-teal);
+    background: #e0f7fa;
 }
 
 h2 {
-    color: var(--text-primary);
+    color: var(--primary-color);
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 1rem;
+    letter-spacing: -0.01em;
 }
 
 .directions-header {
@@ -270,14 +293,18 @@ h2 {
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow);
+    margin-top: 1.5rem;
 }
 
 footer {
     text-align: center;
     margin-top: 3rem;
     padding: 1.5rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
+    color: var(--primary-color);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: transparent;
 }
 
 .hidden {
@@ -656,4 +683,21 @@ button.expand-btn:hover {
 .load-more-btn:hover {
     background-color: var(--border-color);
     transform: translateY(-1px);
+}
+
+/* Accent color utility classes for future use */
+.accent-yellow {
+    color: var(--accent-yellow);
+}
+
+.accent-orange {
+    color: var(--accent-orange);
+}
+
+.accent-teal {
+    color: var(--accent-teal);
+}
+
+.accent-green {
+    color: var(--accent-green);
 }
