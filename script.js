@@ -84,17 +84,18 @@ async function callFirebaseFunction(endpoint, data) {
 
 // State management functions
 function encodeState() {
+    // Only store minimal info
     const state = {
-        locations: locations,
-        selectedVenue: selectedVenue,
-        allVenues: allVenues,
+        locations: locations.map(loc => ({
+            address: loc.address,
+            lat: loc.lat,
+            lng: loc.lng
+        })),
         venueType: document.getElementById('venue-select').value,
         subtype: document.getElementById('subtype-select')?.value || ''
     };
     const jsonString = JSON.stringify(state);
-    // Standard base64
     let base64 = btoa(unescape(encodeURIComponent(jsonString)));
-    // Make it URL-safe
     base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return base64;
 }
@@ -128,10 +129,10 @@ function loadStateFromURL() {
     const state = decodeState(encodedState);
     if (!state) return false;
 
-    // Restore state
-    locations = state.locations;
-    selectedVenue = state.selectedVenue;
-    allVenues = state.allVenues;
+    // Restore minimal state
+    locations = state.locations || [];
+    selectedVenue = null;
+    allVenues = [];
 
     // Update UI
     document.getElementById('venue-select').value = state.venueType;
@@ -149,11 +150,9 @@ function loadStateFromURL() {
     updateMapBounds();
     updateFindButton();
 
-    // If there's a selected venue, display it
-    if (selectedVenue) {
-        displayOptimalVenue(selectedVenue);
-        displayNearbyVenues(allVenues, selectedVenue);
-        addOptimalVenueMarker(selectedVenue);
+    // If there are at least 2 locations, re-fetch venues and recalculate everything
+    if (locations.length >= 2) {
+        findOptimalVenue();
     }
 
     return true;
