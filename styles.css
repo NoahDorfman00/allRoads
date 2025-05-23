@@ -438,6 +438,7 @@ footer {
 }
 
 button.expand-btn:hover {
+    color: var(--text-secondary);
     background: none !important;
     opacity: 0.7;
 }

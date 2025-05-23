@@ -92,13 +92,20 @@ function encodeState() {
         subtype: document.getElementById('subtype-select')?.value || ''
     };
     const jsonString = JSON.stringify(state);
-    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
-    return encodeURIComponent(base64);
+    // Standard base64
+    let base64 = btoa(unescape(encodeURIComponent(jsonString)));
+    // Make it URL-safe
+    base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return base64;
 }
 
 function decodeState(encodedState) {
     try {
-        const jsonString = decodeURIComponent(escape(atob(decodeURIComponent(encodedState))));
+        // Convert from URL-safe base64 to standard base64
+        let base64 = encodedState.replace(/-/g, '+').replace(/_/g, '/');
+        // Pad with '=' if needed
+        while (base64.length % 4) base64 += '=';
+        const jsonString = decodeURIComponent(escape(atob(base64)));
         const state = JSON.parse(jsonString);
         return state;
     } catch (error) {
@@ -109,15 +116,15 @@ function decodeState(encodedState) {
 
 function updateURL() {
     const stateParam = encodeState();
-    const newURL = `${window.location.pathname}#state=${stateParam}`;
+    const newURL = `${window.location.pathname}?state=${stateParam}`;
     window.history.pushState({ path: newURL }, '', newURL);
 }
 
 function loadStateFromURL() {
-    const hash = window.location.hash;
-    if (!hash || !hash.includes('state=')) return false;
+    const params = new URLSearchParams(window.location.search);
+    const encodedState = params.get('state');
+    if (!encodedState) return false;
 
-    const encodedState = hash.split('state=')[1];
     const state = decodeState(encodedState);
     if (!state) return false;
 
