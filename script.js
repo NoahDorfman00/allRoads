@@ -532,8 +532,6 @@ async function shareVenue() {
     try {
         if (navigator.share && navigator.canShare?.({ url })) {
             await navigator.share({
-                title: 'Perfect Meeting Place',
-                text: `Check out this perfect meeting place: ${selectedVenue.name}`,
                 url: url
             });
         } else {
