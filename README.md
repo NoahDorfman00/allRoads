@@ -4,59 +4,45 @@ A simple web application that helps groups find the perfect meeting place based 
 
 ## Features
 
-- Input multiple starting locations with Google Places autocomplete
-- Choose from various venue types (restaurants, bars, cafes, parks)
-- Uses actual travel times rather than straight-line distances
-- Interactive Google Maps integration
-- Real-time optimal venue calculation
-- Clean, modern UI
-
-## Prerequisites
-
-Before you begin, you'll need:
-- A Google Maps API key with the following APIs enabled:
-  - Maps JavaScript API
-  - Places API
-  - Geocoding API
-  - Distance Matrix API
-
-## Setup
-
-1. Clone this repository or download the files
-2. Replace `YOUR_API_KEY` in the `index.html` file with your actual Google Maps API key
-3. Open `index.html` in a web browser
-
-For development, you can use a local server. For example, with Python:
-```bash
-# Python 3
-python -m http.server 8000
-
-# Python 2
-python -m SimpleHTTPServer 8000
-```
-
-Then visit `http://localhost:8000` in your web browser.
-
-## Usage
-
-1. Enter the addresses of all participants using the input field
-2. Select the desired venue type (restaurant, bar, cafe, or park)
-3. Click "Find Optimal Venue" to calculate the best meeting place
-4. The app will display the optimal venue and show all locations on the map
+- Add people with Google Places autocomplete (or "Use my location")
+- Search for anything: "coffee", "tacos", or a specific place like "Starbucks" (brand searches only show that brand)
+- Drive, transit, or walking travel times
+- Results ranked by the fairest trip (shortest longest-trip, then shortest average)
+- Per-person directions, hours and website, and a shareable link
+- Mobile-first layout; on desktop the map sits beside the results
 
 ## How it Works
 
-The application:
-1. Converts all input addresses to coordinates using Google's Geocoding service
-2. Finds nearby venues of the selected type using the Places API
-3. Calculates travel times from each starting point to each potential venue using the Distance Matrix API
-4. Determines the venue with the lowest total travel time for all participants
+The static site (`index.html`, `script.js`, `styles.css`) is served from GitHub Pages. Map display and address autocomplete run in the browser with a referrer-restricted Maps JavaScript API key.
 
-## Contributing
+Everything else goes through a single Firebase HTTPS function, `api` (`functions/index.js`, search logic in `functions/meet.js`), which uses a server-side key stored as the `GOOGLE_MAPS_API_KEY` secret:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- `search`: runs a Places Text Search around the middle of the group, then one batched Distance Matrix call for all candidates, and returns them ranked
+- `details`: hours, website and phone for a place, only when a user asks for them
+- `geocode`: addresses typed without picking a suggestion, and reverse geocoding for "Use my location"
+
+The page pings the function on load so it's warm by the time people have been entered.
+
+## Deploying
+
+1. Deploy the function first (the site calls `https://api-clevp6kv7a-uc.a.run.app`):
+   ```bash
+   cd functions && npm run deploy
+   ```
+2. Push the site to `main` for GitHub Pages.
+
+When changing `script.js` or `styles.css`, bump the `?v=` query on their tags in `index.html` so browsers don't mix a new page with old cached files.
+
+The older per-step functions (`geocodeAddress`, `findNearbyVenues`, `getPlaceDetails`, `calculateTravelTimes`, `findOptimalVenue`) are no longer used by the site and can be deleted once the new version is live.
+
+## Local development
+
+```bash
+python3 -m http.server 8000
+```
+
+Then visit `http://localhost:8000`. The browser key is restricted to the production domain, so the map and autocomplete only work on localhost if `localhost` is added to the key's allowed referrers.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-# allRoads

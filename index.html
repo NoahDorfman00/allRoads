@@ -3,8 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="assets/logo.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#c6e6ee">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
 
     <!-- HTML Meta Tags -->
     <title>all roads</title>
@@ -24,88 +26,91 @@
     <meta name="twitter:description" content="find the perfect meeting place">
     <meta name="twitter:image" content="https://allroads.noahgdorfman.com/assets/social.png?1234">
 
-    <!-- Google Fonts -->
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-
-    <!-- Load application script first -->
-
-
-    <!-- Define the initialization function -->
-    <script>
-        // Try to initialize map with primary and fallback API keys
-        const apiKey = "AIzaSyDmSZmqad5vg0w3rltsNvCeqBbIqhy-wTY";
-        // Initialize and load Google Maps with async loading pattern
-        async function initializeMap() {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&callback=initMap&loading=async`;
-                script.async = true;
-                script.onerror = () => reject(new Error('Failed to load Maps API'));
-                script.onload = () => resolve();
-                document.head.appendChild(script);
-            });
-        }
-        // Start loading the Maps JavaScript API
-        initializeMap();
-    </script>
-    <script src="script.js"></script>
-
-
+    <link rel="preconnect" href="https://maps.googleapis.com">
+    <link rel="preconnect" href="https://api-clevp6kv7a-uc.a.run.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="styles.css?v=2">
+    <script src="script.js?v=2" defer></script>
 </head>
 
 <body>
-    <div class="container">
-        <header class="site-header">
-            <h1>all roads</h1>
-            <p class="slogan">find the perfect meeting place</p>
-        </header>
+    <div class="app">
+        <section class="panel">
+            <header class="site-header">
+                <img src="assets/favicon.png" alt="" class="logo" width="32" height="32">
+                <div>
+                    <h1>all roads</h1>
+                    <p class="slogan">find the perfect meeting place</p>
+                </div>
+            </header>
 
-        <main>
-            <div class="input-section">
-                <div class="location-input">
-                    <input type="text" id="address-input" placeholder="Enter an address">
-                    <button onclick="addLocation()">Add</button>
+            <form id="search-form" class="card" autocomplete="off">
+                <div class="field">
+                    <span class="field-label">Who's meeting?</span>
+                    <ul id="people" class="people"></ul>
+                    <div class="people-actions">
+                        <button type="button" id="add-person" class="text-btn">+ Add person</button>
+                        <button type="button" id="use-location" class="text-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4" fill="currentColor" />
+                                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            Use my location
+                        </button>
+                    </div>
                 </div>
 
-                <div class="venue-type">
-                    <label for="venue-select">Where would you like to meet?</label>
-                    <select id="venue-select">
-                        <option value="restaurant">Restaurant</option>
-                        <option value="bar">Bar</option>
-                        <option value="cafe">Cafe</option>
-                        <option value="park">Park</option>
-                    </select>
-                    <div id="subtype-container" class="hidden"></div>
+                <div class="field">
+                    <label class="field-label" for="query">What are you looking for?</label>
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2" />
+                            <path d="M15.5 15.5 20 20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                        </svg>
+                        <input type="search" id="query" placeholder="coffee, tacos, Starbucks…" enterkeyhint="search">
+                    </div>
+                    <div class="chips" id="chips">
+                        <button type="button" class="chip" data-query="coffee">☕ Coffee</button>
+                        <button type="button" class="chip" data-query="restaurant">🍽️ Restaurant</button>
+                        <button type="button" class="chip" data-query="bar">🍻 Bar</button>
+                        <button type="button" class="chip" data-query="brunch">🥞 Brunch</button>
+                        <button type="button" class="chip" data-query="park">🌳 Park</button>
+                        <button type="button" class="chip" data-query="dessert">🍦 Dessert</button>
+                    </div>
                 </div>
 
-                <button onclick="findOptimalVenue().catch(error => console.error('Error:', error))" id="find-venue-btn"
-                    class="primary-button" disabled>
-                    Find Perfect Meeting Place
-                </button>
-            </div>
+                <div class="field">
+                    <span class="field-label">Getting there</span>
+                    <div class="segmented" id="mode" role="radiogroup" aria-label="Travel mode">
+                        <button type="button" role="radio" data-mode="driving" aria-checked="true">🚗 Drive</button>
+                        <button type="button" role="radio" data-mode="transit" aria-checked="false">🚇 Transit</button>
+                        <button type="button" role="radio" data-mode="walking" aria-checked="false">🚶 Walk</button>
+                    </div>
+                </div>
 
-            <div class="locations-list">
-                <h2>Starting Locations</h2>
-                <ul id="locations-list"></ul>
-            </div>
+                <button type="submit" id="find-btn" class="primary-btn" disabled>Find the middle</button>
+                <p id="status" class="status" role="status" aria-live="polite"></p>
+            </form>
 
+            <section id="results" class="results" hidden>
+                <div class="results-header">
+                    <h2 id="results-title">Best spots</h2>
+                    <button type="button" id="share-btn" class="share-btn">Share</button>
+                </div>
+                <p class="results-hint">Ranked by the fairest trip for everyone. Tap one to see details.</p>
+                <ol id="venue-list" class="venue-list"></ol>
+                <button type="button" id="more-btn" class="more-btn" hidden>Show more</button>
+            </section>
+
+            <footer>made with ❤️ for bringing people together</footer>
+        </section>
+
+        <div class="map-wrap empty" id="map-wrap">
             <div id="map"></div>
-
-            <div id="optimal-venue" class="hidden">
-                <h2>Perfect Meeting Place</h2>
-                <div id="venue-details"></div>
-
-                <div class="nearby-venues">
-                    <h3>Other Options Nearby</h3>
-                    <div class="venue-grid" id="nearby-venues-list"></div>
-                </div>
-            </div>
-        </main>
-
-        <footer>
-            <p>made with ❤️ for bringing people together</p>
-        </footer>
+        </div>
     </div>
 </body>
 
