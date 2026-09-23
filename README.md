@@ -33,8 +33,6 @@ The page pings the function on load so it's warm by the time people have been en
 
 When changing `script.js` or `styles.css`, bump the `?v=` query on their tags in `index.html` so browsers don't mix a new page with old cached files.
 
-The older per-step functions (`geocodeAddress`, `findNearbyVenues`, `getPlaceDetails`, `calculateTravelTimes`, `findOptimalVenue`) are no longer used by the site and can be deleted once the new version is live.
-
 ## Local development
 
 ```bash
